@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Desktop Commander Auto Approver</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hero">
+        <div class="hero-brand">
+          <img class="hero-icon" src="icons/icon48.png" alt="">
+          <div class="hero-copy">
+            <div class="hero-topline">
+              <p class="eyebrow">IDevUsefulStuff</p>
+              <span class="status-pill" id="statusPill">Watching</span>
+            </div>
+            <h1>Desktop Commander Auto Approver</h1>
+            <p class="summary" id="summary">
+              Watching for Desktop Commander approval cards.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <details class="section-block section-toggle" id="liveSection" open>
+        <summary class="section-head">
+          <p>Live detection</p>
+          <div class="section-summary">
+            <span id="promptCount">0</span>
+            <span class="section-chevron" aria-hidden="true"></span>
+          </div>
+        </summary>
+        <div class="section-panel">
+          <ul class="prompt-list" id="promptList"></ul>
+        </div>
+      </details>
+
+      <details class="section-block section-toggle" id="settingsSection" open>
+        <summary class="section-head">
+          <p>Settings</p>
+          <div class="section-summary">
+            <span id="settingsSummary">3 active</span>
+            <span class="section-chevron" aria-hidden="true"></span>
+          </div>
+        </summary>
+
+        <div class="section-panel settings-list">
+          <label class="setting-row" for="autoApproveToggle">
+            <div class="setting-copy">
+              <p class="setting-title">Auto-approve</p>
+              <p class="setting-meta">Click matching Desktop Commander approvals without opening the popup.</p>
+            </div>
+            <span class="toggle">
+              <input id="autoApproveToggle" type="checkbox">
+              <span class="toggle-track"></span>
+            </span>
+          </label>
+
+          <label class="setting-row" for="badgeToggle">
+            <div class="setting-copy">
+              <p class="setting-title">Badge count</p>
+              <p class="setting-meta">Show the current number of detected approval cards on the extension icon.</p>
+            </div>
+            <span class="toggle">
+              <input id="badgeToggle" type="checkbox">
+              <span class="toggle-track"></span>
+            </span>
+          </label>
+
+          <label class="setting-row" for="historyToggle">
+            <div class="setting-copy">
+              <p class="setting-title">Approval history</p>
+              <p class="setting-meta">Keep a recent local log of prompts that were approved.</p>
+            </div>
+            <span class="toggle">
+              <input id="historyToggle" type="checkbox">
+              <span class="toggle-track"></span>
+            </span>
+          </label>
+        </div>
+      </details>
+
+      <details class="section-block section-toggle" id="historySection" open>
+        <summary class="section-head">
+          <p>Recent approvals</p>
+          <div class="section-summary">
+            <span id="historyCount">0</span>
+            <span class="section-chevron" aria-hidden="true"></span>
+          </div>
+        </summary>
+        <div class="section-panel">
+          <div class="section-toolbar">
+            <button class="button button--small button--ghost" id="clearHistoryButton" type="button">
+              Clear all
+            </button>
+          </div>
+          <ul class="history-list" id="historyList"></ul>
+        </div>
+      </details>
+
+      <footer class="footer">
+        <p id="notice">
+          Auto-approval is enabled. Reopen the popup after reloading the extension into an already-open ChatGPT tab.
+        </p>
+      </footer>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>
