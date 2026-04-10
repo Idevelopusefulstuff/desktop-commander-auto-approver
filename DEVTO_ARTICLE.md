@@ -3,7 +3,7 @@ title: "I Built a Chrome Extension That Auto-Approves Tool Prompts in ChatGPT"
 published: true
 description: "Stop clicking Approve every 10 seconds. This extension watches for any tool permission prompt in ChatGPT and clicks it for you — Desktop Commander, MCP servers, browser tools, all of them."
 tags: chrome-extension, chatgpt, automation, javascript
-cover_image: 
+cover_image: https://raw.githubusercontent.com/Idevelopusefulstuff/chatgpt-auto-approve/main/screenshot.png
 canonical_url: https://github.com/Idevelopusefulstuff/chatgpt-auto-approve
 ---
 
@@ -14,6 +14,8 @@ ChatGPT's tool-use ecosystem is growing fast. Desktop Commander, MCP servers, br
 You're sitting there watching your AI agent work, and every 10 seconds it stops dead and waits for you to click a button. It kills the flow. It defeats the whole point of an autonomous agent.
 
 ## The Solution
+
+![ChatGPT Auto Approve extension popup](https://raw.githubusercontent.com/Idevelopusefulstuff/chatgpt-auto-approve/main/screenshot.png)
 
 I built **ChatGPT Auto Approve** — a Chrome Manifest V3 extension that continuously watches the ChatGPT DOM for tool approval prompts and clicks the affirmative action automatically.
 
