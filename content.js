@@ -54,7 +54,21 @@
     /^bad response$/i,
     /^thumbs up$/i,
     /^thumbs down$/i,
-    /^more$/i
+    /^more$/i,
+    /^delete$/i,
+    /^delete chat$/i,
+    /^clear$/i,
+    /^clear chat$/i,
+    /^sign out$/i,
+    /^log out$/i,
+    /^upgrade$/i,
+    /^subscribe$/i,
+    /^send$/i,
+    /^submit$/i,
+    /^save changes$/i,
+    /^create$/i,
+    /^rename$/i,
+    /^archive$/i
   ];
 
   const CONTEXT_PATTERNS = [
@@ -63,9 +77,7 @@
     /alloweddirectories/i,
     /using tools comes with risks/i,
     /tools comes with risks/i,
-    /wants to use/i,
-    /would like to/i,
-    /allow .{1,40} to (access|run|read|write|execute|use|create|delete|modify)/i,
+    /allow .{1,40} to (access|run|read|write|execute|create|delete|modify)/i,
     /grant (access|permission)/i,
     /run this tool/i,
     /tool requires/i,
@@ -80,9 +92,9 @@
     /requesting (access|permission)/i,
     /needs your (approval|permission|consent)/i,
     /do you want to (allow|approve|run|continue)/i,
-    /action requires/i
+    /action requires (your )?(approval|permission)/i
   ];
-  const TOOL_APPROVAL_PATTERN = /desktop commander|mcp|tool|permission|approve|allow|access|execute|action/i;
+  const TOOL_APPROVAL_PATTERN = /desktop commander|mcp server|browser tool|code interpreter|run(ning)? tool|tool (use|requires|permission|approval)|permission(s)? required|approve this action|using tools comes with risks/i;
 
   const AUTO_APPROVE_DELAY_MS = 180;
   const AUTO_APPROVE_VERIFY_MS = 420;
@@ -223,10 +235,12 @@
           secondaryButtons.length === 1 &&
           visibleButtons.length >= 2 &&
           visibleButtons.length <= 4 &&
-          text.length < 600
+          text.length < 600 &&
+          text.length > 10
         ) {
           const hasNeg = visibleButtons.some((b) => isNegativeLabel(getButtonLabel(b)));
-          if (hasNeg) {
+          const hasPos = visibleButtons.some((b) => getLabelScore(getButtonLabel(b)) >= 3);
+          if (hasNeg && hasPos) {
             return current;
           }
         }
@@ -393,11 +407,11 @@
 
       const isToolApprovalContext = TOOL_APPROVAL_PATTERN.test(context) || CONTEXT_PATTERNS.some((p) => p.test(context));
 
-      if (!approvalCard && !isToolApprovalContext && !inDialog && !hasNegativeSibling) {
+      if (!approvalCard && !isToolApprovalContext) {
         return;
       }
 
-      if (!labelScore && (isToolApprovalContext || hasNegativeSibling) && (inDialog || hasNegativeSibling)) {
+      if (!labelScore && isToolApprovalContext && (inDialog || hasNegativeSibling)) {
         labelScore = 3;
       }
 
