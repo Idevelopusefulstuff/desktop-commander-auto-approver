@@ -183,7 +183,7 @@ function renderPromptList() {
   if (!candidates.length) {
     const empty = document.createElement("li");
     empty.className = "empty-state";
-    empty.textContent = "No Desktop Commander approval card is visible on this page right now.";
+    empty.textContent = "No tool approval prompt is visible on this page right now.";
     refs.promptList.appendChild(empty);
     return;
   }
@@ -191,7 +191,7 @@ function renderPromptList() {
   candidates.forEach((candidate) => {
     const item = document.createElement("li");
     item.className = "prompt-item";
-    const message = candidate.message || candidate.context || "Desktop Commander approval detected.";
+    const message = candidate.message || candidate.context || "Tool approval detected.";
     item.innerHTML = `
       <p class="item-title">${candidate.label || "Primary action"}</p>
       <p class="item-meta">${message}</p>
@@ -217,7 +217,7 @@ function renderSectionState() {
 }
 
 function getHistoryMessage(entry) {
-  return entry.message || entry.fullMessage || entry.context || entry.label || "Desktop Commander approval completed.";
+  return entry.message || entry.fullMessage || entry.context || entry.label || "Tool approval completed.";
 }
 
 function renderHistory() {
@@ -271,7 +271,7 @@ function renderState() {
   }
 
   if (!isSupported) {
-    refs.summary.textContent = "Open ChatGPT to watch for Desktop Commander approval cards.";
+    refs.summary.textContent = "Open ChatGPT to watch for tool approval prompts.";
     refs.statusPill.textContent = "Idle";
     return;
   }
@@ -283,10 +283,10 @@ function renderState() {
   }
 
   if (count > 0) {
-    refs.summary.textContent = `Found ${count} Desktop Commander approval card${count === 1 ? "" : "s"} on this page.`;
+    refs.summary.textContent = `Found ${count} tool approval prompt${count === 1 ? "" : "s"} on this page.`;
     refs.statusPill.textContent = `${count} live`;
   } else if (state.settings.autoApproveEnabled) {
-    refs.summary.textContent = "Watching the active ChatGPT tab. Matching Desktop Commander approvals will be clicked automatically.";
+    refs.summary.textContent = "Watching the active ChatGPT tab. Matching tool approvals will be clicked automatically.";
     refs.statusPill.textContent = "Watching";
   } else {
     refs.summary.textContent = "Watching the active ChatGPT tab. Auto-approve is paused.";
@@ -319,7 +319,7 @@ async function refreshState({ silent = true } = {}) {
     setNotice(
       state.page.count
         ? "Live detection updated from the active ChatGPT tab."
-        : "Scan complete. No Desktop Commander approval card is visible right now."
+        : "Scan complete. No tool approval prompt is visible right now."
     );
   }
 }

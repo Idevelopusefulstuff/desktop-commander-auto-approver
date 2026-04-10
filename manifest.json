@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Desktop Commander Auto Approver",
-  "version": "2.1.0",
-  "description": "Automatically detects and approves Desktop Commander permission prompts in ChatGPT, with badge, settings, and approval history.",
+  "name": "ChatGPT Auto Approve",
+  "version": "3.0.0",
+  "description": "Automatically detects and approves tool permission prompts in ChatGPT — Desktop Commander, MCP servers, browser tools, and more.",
   "permissions": [
     "scripting",
     "storage",
@@ -16,7 +16,7 @@
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "Desktop Commander Auto Approver",
+    "default_title": "ChatGPT Auto Approve",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon16.png",

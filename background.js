@@ -102,8 +102,8 @@ async function appendHistoryEntry(entry) {
   const nextHistory = [
     {
       label: entry.label || "Approved prompt",
-      context: entry.context || "Desktop Commander approval completed.",
-      message: entry.message || entry.context || entry.label || "Desktop Commander approval completed.",
+      context: entry.context || "Tool approval completed.",
+      message: entry.message || entry.context || entry.label || "Tool approval completed.",
       createdAt: entry.createdAt || Date.now()
     },
     ...currentHistory

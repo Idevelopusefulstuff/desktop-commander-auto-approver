@@ -61,13 +61,28 @@
     /desktop commander/i,
     /allowed directories/i,
     /alloweddirectories/i,
-    /configure desktop commander/i,
-    /allow full system access via desktop commander/i,
-    /access granted for desktop commander/i,
     /using tools comes with risks/i,
-    /tools comes with risks/i
+    /tools comes with risks/i,
+    /wants to use/i,
+    /would like to/i,
+    /allow .{1,40} to (access|run|read|write|execute|use|create|delete|modify)/i,
+    /grant (access|permission)/i,
+    /run this tool/i,
+    /tool requires/i,
+    /permission(s)? required/i,
+    /approve this action/i,
+    /confirm (this )?(action|tool|execution)/i,
+    /mcp server/i,
+    /browser tool/i,
+    /code interpreter/i,
+    /execute code/i,
+    /file (access|system)/i,
+    /requesting (access|permission)/i,
+    /needs your (approval|permission|consent)/i,
+    /do you want to (allow|approve|run|continue)/i,
+    /action requires/i
   ];
-  const DESKTOP_COMMANDER_PATTERN = /desktop commander/i;
+  const TOOL_APPROVAL_PATTERN = /desktop commander|mcp|tool|permission|approve|allow|access|execute|action/i;
 
   const AUTO_APPROVE_DELAY_MS = 180;
   const AUTO_APPROVE_VERIFY_MS = 420;
@@ -195,12 +210,25 @@
         const secondaryButtons = visibleButtons.filter((candidate) => isSecondaryApprovalButton(candidate));
 
         if (
-          DESKTOP_COMMANDER_PATTERN.test(text) &&
+          (TOOL_APPROVAL_PATTERN.test(text) || CONTEXT_PATTERNS.some((p) => p.test(text))) &&
           primaryButtons.length === 1 &&
           secondaryButtons.length === 1 &&
           visibleButtons.length <= 5
         ) {
           return current;
+        }
+
+        if (
+          primaryButtons.length === 1 &&
+          secondaryButtons.length === 1 &&
+          visibleButtons.length >= 2 &&
+          visibleButtons.length <= 4 &&
+          text.length < 600
+        ) {
+          const hasNeg = visibleButtons.some((b) => isNegativeLabel(getButtonLabel(b)));
+          if (hasNeg) {
+            return current;
+          }
         }
       }
 
@@ -313,7 +341,7 @@
 
   function getFullContext(context, label) {
     const stripped = normalizeText(context.replace(label, ""));
-    return stripped || normalizeText(context) || "Desktop Commander approval detected on page.";
+    return stripped || normalizeText(context) || "Tool approval detected on page.";
   }
 
   function getContextText(button, container) {
@@ -363,13 +391,13 @@
         interactiveCandidates
       );
 
-      const isDesktopCommanderContext = DESKTOP_COMMANDER_PATTERN.test(context);
+      const isToolApprovalContext = TOOL_APPROVAL_PATTERN.test(context) || CONTEXT_PATTERNS.some((p) => p.test(context));
 
-      if (!approvalCard && !isDesktopCommanderContext) {
+      if (!approvalCard && !isToolApprovalContext && !inDialog && !hasNegativeSibling) {
         return;
       }
 
-      if (!labelScore && isDesktopCommanderContext && (inDialog || hasNegativeSibling)) {
+      if (!labelScore && (isToolApprovalContext || hasNegativeSibling) && (inDialog || hasNegativeSibling)) {
         labelScore = 3;
       }
 
@@ -381,7 +409,7 @@
         return;
       }
 
-      const labelAllowsInlineMatch = /^start process$/i.test(label) && isDesktopCommanderContext;
+      const labelAllowsInlineMatch = /^start process$/i.test(label) && isToolApprovalContext;
 
       if (!dialogContainer && !approvalCard && !labelAllowsInlineMatch) {
         return;
