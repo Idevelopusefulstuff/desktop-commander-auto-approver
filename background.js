@@ -1,5 +1,7 @@
 const BADGE_COLOR = "#f97316";
 const MAX_HISTORY_ITEMS = 20;
+const TAB_SWEEP_ALARM = "chatgpt-approval-sweep";
+const TAB_SWEEP_PERIOD_MINUTES = 0.5;
 const DEFAULT_SETTINGS = {
   autoApproveEnabled: true,
   badgeEnabled: true,
@@ -90,6 +92,85 @@ async function clearAllBadges() {
   }
 }
 
+function isChatgptUrl(url = "") {
+  return /^https:\/\/(chatgpt\.com|chat\.openai\.com)\//i.test(url);
+}
+
+async function ensureSweepAlarm() {
+  try {
+    await chrome.alarms.create(TAB_SWEEP_ALARM, {
+      periodInMinutes: TAB_SWEEP_PERIOD_MINUTES
+    });
+  } catch (error) {
+    // Ignore alarm creation failures on unsupported runtimes.
+  }
+}
+
+async function ensureContentScript(tabId) {
+  if (tabId === undefined) {
+    return false;
+  }
+
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ["content.js"]
+    });
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+async function requestPromptState(tabId, reason = "background-sweep") {
+  if (tabId === undefined) {
+    return false;
+  }
+
+  const settings = await getSettings();
+
+  if (!settings.autoApproveEnabled) {
+    return false;
+  }
+
+  const injected = await ensureContentScript(tabId);
+
+  if (!injected) {
+    return false;
+  }
+
+  try {
+    await chrome.tabs.sendMessage(tabId, {
+      type: "REQUEST_STATE",
+      reason
+    });
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+async function sweepChatTabs(reason = "background-sweep") {
+  const settings = await getSettings();
+
+  if (!settings.autoApproveEnabled) {
+    return;
+  }
+
+  try {
+    const tabs = await chrome.tabs.query({
+      url: [
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*"
+      ]
+    });
+
+    await Promise.all(tabs.map((tab) => requestPromptState(tab.id, reason)));
+  } catch (error) {
+    // Ignore sweep failures when tabs are inaccessible.
+  }
+}
+
 async function appendHistoryEntry(entry) {
   const settings = await getSettings();
 
@@ -114,16 +195,21 @@ async function appendHistoryEntry(entry) {
 
 chrome.runtime.onInstalled.addListener(async () => {
   await ensureDefaults();
+  await ensureSweepAlarm();
 
   try {
     await chrome.action.setBadgeBackgroundColor({ color: BADGE_COLOR });
   } catch (error) {
     // Ignore installation-time badge issues.
   }
+
+  await sweepChatTabs("installed");
 });
 
 chrome.runtime.onStartup.addListener(() => {
   void ensureDefaults();
+  void ensureSweepAlarm();
+  void sweepChatTabs("startup");
 });
 
 chrome.runtime.onMessage.addListener((message, sender) => {
@@ -147,10 +233,55 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
   if (changes.badgeEnabled?.newValue === false) {
     void clearAllBadges();
   }
+
+  if (Object.prototype.hasOwnProperty.call(changes, "autoApproveEnabled")) {
+    void sweepChatTabs("settings");
+  }
 });
 
-chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === "loading") {
     void clearBadge(tabId);
+    return;
+  }
+
+  if (changeInfo.status === "complete" && isChatgptUrl(tab?.url)) {
+    void requestPromptState(tabId, "tab-updated");
+  }
+});
+
+chrome.tabs.onActivated.addListener(async ({ tabId }) => {
+  try {
+    const tab = await chrome.tabs.get(tabId);
+
+    if (isChatgptUrl(tab.url)) {
+      await requestPromptState(tabId, "tab-activated");
+    }
+  } catch (error) {
+    // Ignore tab activation races.
+  }
+});
+
+chrome.windows.onFocusChanged.addListener((windowId) => {
+  if (windowId === chrome.windows.WINDOW_ID_NONE) {
+    return;
+  }
+
+  void chrome.tabs.query({ active: true, windowId }).then((tabs) => {
+    const [tab] = tabs;
+
+    if (tab?.id !== undefined && isChatgptUrl(tab.url)) {
+      return requestPromptState(tab.id, "window-focus");
+    }
+
+    return null;
+  }).catch(() => {
+    // Ignore focus changes without accessible tabs.
+  });
+});
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === TAB_SWEEP_ALARM) {
+    void sweepChatTabs("background-sweep");
   }
 });

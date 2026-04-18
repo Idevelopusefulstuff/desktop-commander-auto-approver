@@ -4,6 +4,10 @@ Chrome extension that automatically detects and approves tool permission prompts
 
 Built by `IDevUsefulStuff`.
 
+## Update note
+
+- `v3.1.0`: hardened background approval by sweeping open ChatGPT tabs from the service worker, reinjecting the content script when needed, and forcing the thread to the latest content when an approval prompt is offscreen or the page is backgrounded.
+
 ## What it does
 
 - Detects tool approval prompts structurally (primary/secondary button pairs in dialog-like containers).

@@ -1,5 +1,5 @@
 (() => {
-  const INSTALL_VERSION = "2026-04-09-1";
+  const INSTALL_VERSION = "2026-04-18-1";
 
   if (window.__chatgptApprovalConsoleVersion === INSTALL_VERSION) {
     return;
@@ -101,12 +101,17 @@
   const AUTO_APPROVE_COOLDOWN_MS = 6000;
   const AUTO_APPROVE_MAX_ATTEMPTS = 3;
   const HEARTBEAT_SYNC_MS = 1800;
+  const SCROLL_RESCUE_COOLDOWN_MS = 2200;
+  const SCROLL_RESCUE_THRESHOLD_PX = 140;
+  const SCROLL_RESCAN_DELAY_MS = 180;
 
   const state = {
     broadcastTimer: null,
     autoApproveTimer: null,
     heartbeatTimer: null,
+    scrollRescanTimer: null,
     autoApproveCache: new Map(),
+    lastScrollRescueAt: 0,
     lastSignature: "",
     styleInjected: false
   };
@@ -366,6 +371,106 @@
     return buildContext(button);
   }
 
+  function getThreadScrollRoot() {
+    const roots = [
+      document.querySelector("[data-scroll-root]"),
+      document.querySelector("main"),
+      document.scrollingElement,
+      document.documentElement,
+      document.body
+    ];
+
+    return roots.find((root) => {
+      return root instanceof HTMLElement && root.scrollHeight > root.clientHeight + 40;
+    }) || null;
+  }
+
+  function getDistanceFromBottom(element) {
+    if (!(element instanceof HTMLElement)) {
+      return 0;
+    }
+
+    return Math.max(0, element.scrollHeight - element.scrollTop - element.clientHeight);
+  }
+
+  function scrollThreadToLatest(root) {
+    if (!(root instanceof HTMLElement)) {
+      return;
+    }
+
+    try {
+      root.scrollTo({
+        top: root.scrollHeight,
+        left: 0,
+        behavior: "auto"
+      });
+    } catch (error) {
+      root.scrollTop = root.scrollHeight;
+    }
+
+    root.scrollTop = root.scrollHeight;
+
+    const threadBottom =
+      document.getElementById("thread-bottom-container") ||
+      document.getElementById("thread-bottom") ||
+      document.getElementById("main");
+
+    if (threadBottom instanceof HTMLElement) {
+      threadBottom.scrollIntoView({
+        block: "end",
+        inline: "nearest",
+        behavior: "auto"
+      });
+    }
+  }
+
+  function maybeRescueOffscreenPrompt(reason, candidates) {
+    if (candidates.length > 0 || !settings.autoApproveEnabled || reason === "scroll-rescue") {
+      return candidates;
+    }
+
+    const scrollRoot = getThreadScrollRoot();
+
+    if (!(scrollRoot instanceof HTMLElement)) {
+      return candidates;
+    }
+
+    const distanceFromBottom = getDistanceFromBottom(scrollRoot);
+    const shouldForceLatest =
+      reason === "mutation" ||
+      reason === "wake" ||
+      reason === "force" ||
+      reason === "background-sweep" ||
+      document.visibilityState !== "visible" ||
+      !document.hasFocus();
+
+    if (!shouldForceLatest || distanceFromBottom < SCROLL_RESCUE_THRESHOLD_PX) {
+      return candidates;
+    }
+
+    const now = Date.now();
+
+    if (now - state.lastScrollRescueAt < SCROLL_RESCUE_COOLDOWN_MS) {
+      return candidates;
+    }
+
+    state.lastScrollRescueAt = now;
+    scrollThreadToLatest(scrollRoot);
+
+    const rescuedCandidates = getPromptCandidates();
+
+    if (rescuedCandidates.length > 0) {
+      return rescuedCandidates;
+    }
+
+    window.clearTimeout(state.scrollRescanTimer);
+    state.scrollRescanTimer = window.setTimeout(() => {
+      syncState(true, "scroll-rescue");
+    }, SCROLL_RESCAN_DELAY_MS);
+
+    return candidates;
+  }
+
   function getPromptCandidates() {
     const seen = new Set();
     const candidates = [];
@@ -539,7 +644,7 @@
 
     if (!isStillPresent) {
       recordAutoApproval(candidateSnapshot);
-      scheduleSync(true);
+      scheduleSync(true, "approved");
       return;
     }
 
@@ -549,7 +654,7 @@
     }
 
     clearApprovalMemory(candidateKey);
-    scheduleSync(true);
+    scheduleSync(true, "approval-failed");
   }
 
   function attemptAutoApproval(candidateKey, attempt = 0) {
@@ -557,7 +662,7 @@
 
     if (!liveCandidate) {
       clearApprovalMemory(candidateKey);
-      scheduleSync(true);
+      scheduleSync(true, "candidate-missing");
       return;
     }
 
@@ -571,7 +676,7 @@
 
     if (!dispatchClick(liveCandidate.button)) {
       clearApprovalMemory(liveKey);
-      scheduleSync(true);
+      scheduleSync(true, "click-failed");
       return;
     }
 
@@ -612,8 +717,9 @@
     }, AUTO_APPROVE_DELAY_MS);
   }
 
-  function syncState(force = false) {
-    const candidates = getPromptCandidates();
+  function syncState(force = false, reason = "mutation") {
+    const initialCandidates = getPromptCandidates();
+    const candidates = maybeRescueOffscreenPrompt(reason, initialCandidates);
     const snapshot = getSnapshot(candidates);
     const signature = JSON.stringify(snapshot.candidates);
 
@@ -635,9 +741,9 @@
     }
   }
 
-  function scheduleSync(force = false) {
+  function scheduleSync(force = false, reason = "mutation") {
     window.clearTimeout(state.broadcastTimer);
-    state.broadcastTimer = window.setTimeout(() => syncState(force), force ? 0 : 140);
+    state.broadcastTimer = window.setTimeout(() => syncState(force, reason), force ? 0 : 140);
   }
 
   function ensureHighlightStyle() {
@@ -683,6 +789,16 @@
   function dispatchClick(button) {
     if (!(button instanceof HTMLElement) || !button.isConnected) {
       return false;
+    }
+
+    const approvalContainer = getDialogContainer(button, getInteractiveCandidates());
+
+    if (approvalContainer instanceof HTMLElement) {
+      approvalContainer.scrollIntoView({
+        block: "center",
+        inline: "nearest",
+        behavior: "auto"
+      });
     }
 
     button.scrollIntoView({
@@ -771,12 +887,12 @@
         window.clearTimeout(state.autoApproveTimer);
       }
 
-      scheduleSync(true);
+      scheduleSync(true, "settings");
     }
   }
 
   function handleWakeEvent() {
-    scheduleSync(true);
+    scheduleSync(true, "wake");
   }
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -792,7 +908,7 @@
     if (message.type === "REQUEST_STATE") {
       const snapshot = getSnapshot();
       sendResponse({ ok: true, ...snapshot });
-      scheduleSync(true);
+      scheduleSync(true, "background-sweep");
       return undefined;
     }
 
@@ -809,7 +925,7 @@
     });
 
     if (shouldSync) {
-      scheduleSync();
+      scheduleSync(false, "mutation");
     }
   });
 
@@ -825,13 +941,14 @@
   window.addEventListener("focus", handleWakeEvent, true);
   window.addEventListener("pageshow", handleWakeEvent, true);
   state.heartbeatTimer = window.setInterval(() => {
-    scheduleSync(document.visibilityState !== "visible");
+    scheduleSync(document.visibilityState !== "visible", "heartbeat");
   }, HEARTBEAT_SYNC_MS);
 
   window.__chatgptApprovalConsoleCleanup = () => {
     observer.disconnect();
     window.clearTimeout(state.broadcastTimer);
     window.clearTimeout(state.autoApproveTimer);
+    window.clearTimeout(state.scrollRescanTimer);
     window.clearInterval(state.heartbeatTimer);
     chrome.storage.onChanged.removeListener(handleStorageChange);
     document.removeEventListener("visibilitychange", handleWakeEvent, true);
@@ -839,5 +956,5 @@
     window.removeEventListener("pageshow", handleWakeEvent, true);
   };
 
-  void loadSettings().finally(() => scheduleSync(true));
+  void loadSettings().finally(() => scheduleSync(true, "force"));
 })();

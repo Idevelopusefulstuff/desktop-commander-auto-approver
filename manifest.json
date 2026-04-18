@@ -1,9 +1,10 @@
 {
   "manifest_version": 3,
   "name": "ChatGPT Auto Approve",
-  "version": "3.0.0",
-  "description": "Automatically detects and approves tool permission prompts in ChatGPT — Desktop Commander, MCP servers, browser tools, and more.",
+  "version": "3.1.0",
+  "description": "Automatically detects and approves tool permission prompts in ChatGPT \u2014 Desktop Commander, MCP servers, browser tools, and more.",
   "permissions": [
+    "alarms",
     "scripting",
     "storage",
     "tabs"
